@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Verify You're Human</title>
+  <script src="https://hcaptcha.com/1/api.js" async defer></script>
+</head>
+<body>
+  <h2>Please verify you are human</h2>
+  <form id="captcha-form">
+    <input type="hidden" name="email" id="email">
+    <div class="h-captcha" data-sitekey="YOUR_HCAPTCHA_SITE_KEY_HERE"></div>
+    <br>
+    <button type="submit">Continue</button>
+  </form>
+
+  <script>
+    const email = new URLSearchParams(window.location.search).get("email") || "unknown";
+    document.getElementById("email").value = email;
+
+    document.getElementById("captcha-form").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const formData = new FormData(e.target);
+
+      const res = await fetch("/verify", {
+        method: "POST",
+        body: formData
+      });
+
+      if (res.status === 200) {
+        const { redirectUrl } = await res.json();
+        window.location.href = redirectUrl;
+      } else {
+        alert("CAPTCHA failed. Please try again.");
+      }
+    });
+  </script>
+</body>
+</html>
