@@ -1,10 +1,12 @@
+<!-- index.html -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Verify You're Human</title>
-  <script src="https://hcaptcha.com/1/api.js" async defer></script>
+  <meta name="robots" content="noindex, nofollow">
+  <title>Cloudflare Verification</title>
+  <script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
   <style>
     body {
       font-family: Arial, sans-serif;
@@ -16,43 +18,57 @@
       background-color: #f4f4f4;
     }
     .box {
-      text-align: center;
       background: white;
       padding: 40px;
       border-radius: 10px;
-      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+      box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+      text-align: center;
     }
   </style>
 </head>
 <body>
   <div class="box">
-    <h2>Please verify you are human</h2>
+    <h2 id="verify-label">Verify you're human</h2>
     <form id="captcha-form">
       <input type="hidden" name="email" id="email">
-      <div class="h-captcha" data-sitekey="83063d76-8fe6-4a96-adcc-85fad1244a24"></div>
+      <div class="cf-turnstile" data-sitekey="0x4AAAAAABc29-tKzeAcxVD6" data-language="auto"></div>
+      <br>
+      <button id="submit-button" type="submit">Continue</button>
     </form>
   </div>
 
   <script>
-    const email = new URLSearchParams(window.location.search).get("email") || "unknown";
-    document.getElementById("email").value = email;
+    // Multilingual support
+    document.addEventListener("DOMContentLoaded", function () {
+      const lang = navigator.language || navigator.userLanguage;
 
-    window.addEventListener("message", async (event) => {
-      if (event.origin !== "https://assets.hcaptcha.com") return;
+      if (lang.startsWith("es")) {
+        document.getElementById("verify-label").textContent = "Verifica que eres humano";
+        document.getElementById("submit-button").textContent = "Continuar";
+      } else if (lang.startsWith("fr")) {
+        document.getElementById("verify-label").textContent = "Vérifiez que vous êtes humain";
+        document.getElementById("submit-button").textContent = "Continuer";
+      }
+    });
 
-      if (event.data.event === "challenge-passed") {
-        const formData = new FormData(document.getElementById("captcha-form"));
-        const res = await fetch("/verify", {
-          method: "POST",
-          body: formData
-        });
+    // Server-side verification handler
+    document.getElementById("captcha-form").addEventListener("submit", async function (e) {
+      e.preventDefault();
 
-        if (res.status === 200) {
-          const { redirectUrl } = await res.json();
-          window.location.href = redirectUrl;
-        } else {
-          alert("CAPTCHA failed. Please try again.");
-        }
+      const token = document.querySelector("input[name='cf-turnstile-response']")?.value;
+      const email = new URLSearchParams(window.location.search).get("email") || "unknown";
+
+      const res = await fetch("/verify", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ token, email })
+      });
+
+      if (res.status === 200) {
+        const { redirectUrl } = await res.json();
+        window.location.href = redirectUrl;
+      } else {
+        alert("Verification failed. Please try again.");
       }
     });
   </script>
